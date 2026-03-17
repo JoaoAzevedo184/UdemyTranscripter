@@ -4,370 +4,63 @@ Ferramenta CLI que extrai transcrições de cursos da Udemy e transforma em mate
 
 **Pipeline:** `download` → `format` → `enrich`
 
-```bash
-# 1. Baixa as transcrições e formata para Obsidian
-python -m udemy_transcripter --url "https://udemy.com/course/meu-curso/" --format obsidian
-
-# 2. Enriquece com IA (código, exemplos, estrutura educativa)
-python -m udemy_transcripter --enrich ./udemy_transcripts/MeuCurso --provider groq
-```
-
-## Instalação
+## Quick Start
 
 ```bash
+# Instalar
 git clone https://github.com/JoaoAzevedo184/UdemyTranscripter.git
 cd UdemyTranscripter
 pip install -e .
-```
 
-## Configuração
-
-O projeto usa um arquivo `.env` na raiz para armazenar credenciais. Rode `--setup` para criá-lo interativamente, ou copie o `.env.example` e preencha manualmente.
-
-```bash
-cp .env.example .env
-```
-
-### Cookies da Udemy (obrigatório para download)
-
-Os cookies autenticam suas requisições à API da Udemy.
-
-**Como obter:**
-
-1. Acesse [udemy.com](https://udemy.com) e faça login
-2. Abra o **DevTools** (`F12`) → aba **Network**
-3. Recarregue a página de qualquer curso
-4. Clique em alguma requisição para `www.udemy.com`
-5. Em **Request Headers**, copie o valor completo do header **`Cookie`**
-
-**Configurar via setup interativo:**
-
-```bash
+# Configurar cookies da Udemy (uma vez)
 python -m udemy_transcripter --setup
-# Cole a cookie string quando solicitado
-```
 
-**Ou configure manualmente no `.env`:**
-
-```env
-UDEMY_COOKIES='access_token=xxx; cf_clearance=yyy; client_id=zzz; ...'
-```
-
-> ⚠️ Nunca compartilhe seus cookies. Eles dão acesso à sua conta.
-> Cookies expiram periodicamente — se der erro 403, gere novos.
-
-### API Key do Groq (recomendado para enriquecimento)
-
-O Groq é a opção recomendada para enriquecimento: **gratuito**, ultra-rápido, e sem cartão de crédito.
-
-**Como obter:**
-
-1. Acesse [console.groq.com](https://console.groq.com)
-2. Crie conta (pode ser com Google)
-3. Vá em **API Keys** → **Create API Key**
-4. Copie a chave (começa com `gsk_`)
-
-**Adicione ao `.env`:**
-
-```env
-GROQ_API_KEY=gsk_sua_chave_aqui
-```
-
-**Limites do tier gratuito:**
-
-| Modelo | Tokens/min | Tokens/dia |
-|--------|:---:|:---:|
-| `llama-3.3-70b-versatile` | ~6.000 | ~500.000 |
-| `llama-3.1-8b-instant` | ~30.000 | maior |
-| `deepseek-r1-distill-llama-70b` | ~6.000 | ~500.000 |
-
-**O que acontece se atingir o limite?** A API retorna erro 429 e o enricher automaticamente espera e tenta novamente. Se o limite diário for atingido, os limites **resetam no dia seguinte** — não precisa pagar. Basta rodar o comando de novo; os arquivos já enriquecidos são pulados automaticamente.
-
-Para 127 aulas com o modelo 70B, pode levar 2-3 dias no tier gratuito. Dicas para otimizar:
-
-- Use `--delay 5` para espaçar as chamadas e evitar bater no limite por minuto
-- Use `--model llama-3.1-8b-instant` que tem limites mais altos (qualidade um pouco menor)
-- Se quiser tudo de uma vez, o Developer tier ($0 fixo, pay-as-you-go) tem 10x mais limites
-
-### API Key do Google Gemini (opcional — alternativa gratuita)
-
-Outro provider gratuito sem cartão. Usa modelos proprietários do Google com qualidade alta.
-
-**Como obter:**
-
-1. Acesse [aistudio.google.com](https://aistudio.google.com)
-2. Faça login com conta Google
-3. Clique em **Get API Key** → **Create API Key**
-4. Copie a chave (começa com `AIzaSy`)
-
-**Adicione ao `.env`:**
-
-```env
-GEMINI_API_KEY=AIzaSy_sua_chave_aqui
-```
-
-**Limites do tier gratuito:**
-
-| Modelo | RPM | RPD |
-|--------|:---:|:---:|
-| `gemini-2.5-flash` (padrão) | 10 | 500 |
-| `gemini-2.5-pro` | 5 | 100 |
-| `gemini-2.5-flash-lite` | 15 | 1.000 |
-
-Limites resetam à meia-noite (horário do Pacífico). Mesma lógica do Groq: se atingir, espere o dia seguinte e rode novamente.
-
-### API Key da Anthropic (opcional — para enriquecimento com Claude)
-
-Necessário **somente** se quiser usar o Claude como provider. Requer créditos pagos.
-
-**Como obter:**
-
-1. Acesse [console.anthropic.com](https://console.anthropic.com)
-2. Crie uma conta ou faça login
-3. Vá em **Settings** → **API Keys** → **Create Key**
-4. Copie a chave (começa com `sk-ant-`)
-5. Adicione créditos em **Plans & Billing** (mínimo $5)
-
-```env
-ANTHROPIC_API_KEY=sk-ant-api03-sua-chave-aqui
-```
-
-### Resumo dos providers
-
-| Provider | Custo | Velocidade | Qualidade | Setup |
-|----------|:---:|:---:|:---:|---|
-| **Groq** | Gratuito | Ultra-rápido | Alta | API key em console.groq.com |
-| **Gemini** | Gratuito | Rápido | Alta | API key em aistudio.google.com |
-| **Ollama** | Gratuito | Lento (local) | Boa | `ollama pull llama3.1` |
-| **Claude** | ~$0.50–2/curso | Rápido | Excelente | API key + créditos pagos |
-
-## Uso
-
-### Download de transcrições
-
-```bash
-# Listar idiomas disponíveis
-python -m udemy_transcripter \
-  --url "https://udemy.com/course/meu-curso/" --list-langs
-
-# Baixar como texto simples
-python -m udemy_transcripter \
-  --url "https://udemy.com/course/meu-curso/"
-
-# Baixar como Markdown para Obsidian
-python -m udemy_transcripter \
-  --url "https://udemy.com/course/meu-curso/" --format obsidian
-
-# Obsidian + timestamps + arquivo mesclado + idioma
+# Baixar transcrições formatadas para Obsidian
 python -m udemy_transcripter \
   --url "https://udemy.com/course/meu-curso/" \
-  --format obsidian --timestamps --merge --lang pt
+  --format obsidian --merge
 
-# Salvar direto no vault do Obsidian
-python -m udemy_transcripter \
-  --url "https://udemy.com/course/meu-curso/" \
-  --format obsidian --output ~/Obsidian/Vault/Cursos
-```
-
-### Enriquecimento com IA
-
-Transforma transcrições brutas em material de estudo completo: blocos de código, exemplos práticos, estrutura educativa e perguntas de revisão.
-
-```bash
-# Com Groq (gratuito, recomendado)
+# Enriquecer com IA (Groq gratuito)
 python -m udemy_transcripter \
   --enrich "./udemy_transcripts/MeuCurso" \
   --provider groq
-
-# Com modelo mais rápido do Groq (limites mais altos)
-python -m udemy_transcripter \
-  --enrich "./udemy_transcripts/MeuCurso" \
-  --provider groq --model llama-3.1-8b-instant
-
-# Com delay maior para não bater rate limit
-python -m udemy_transcripter \
-  --enrich "./udemy_transcripts/MeuCurso" \
-  --provider groq --delay 5
-
-# Com Ollama (local, gratuito, mais lento)
-python -m udemy_transcripter \
-  --enrich "./udemy_transcripts/MeuCurso" \
-  --provider ollama
-
-# Com Gemini (gratuito, modelos Google)
-python -m udemy_transcripter \
-  --enrich "./udemy_transcripts/MeuCurso" \
-  --provider gemini
-
-# Gemini com modelo mais capaz (limite menor: 100 RPD)
-python -m udemy_transcripter \
-  --enrich "./udemy_transcripts/MeuCurso" \
-  --provider gemini --model gemini-2.5-pro --delay 10
-
-# Com Claude API (precisa de créditos)
-python -m udemy_transcripter \
-  --enrich "./udemy_transcripts/MeuCurso" \
-  --provider claude
-
-# Preview sem alterar nenhum arquivo
-python -m udemy_transcripter \
-  --enrich "./udemy_transcripts/MeuCurso" \
-  --provider groq --dry-run
 ```
 
-**Comportamento do enricher:**
+## Providers de IA
 
-- Arquivos já enriquecidos são **pulados automaticamente** (idempotente)
-- Se o Groq retornar rate limit (429), o enricher **espera automaticamente** e retenta
-- Se o limite diário for atingido, rode novamente no dia seguinte — continua de onde parou
-- Arquivos especiais (`_MOC.md`, `_index.md`) são ignorados
-- Cada arquivo recebe marcador `<!-- enriched-by: provider/model -->`
+| Provider | Custo | Velocidade | Setup |
+|----------|:---:|:---:|---|
+| **Groq** | Gratuito | Ultra-rápido | [console.groq.com](https://console.groq.com) |
+| **Gemini** | Gratuito | Rápido | [aistudio.google.com](https://aistudio.google.com) |
+| **Ollama** | Gratuito | Local | `ollama pull llama3.1` |
+| **Claude** | Pago | Rápido | [console.anthropic.com](https://console.anthropic.com) |
 
-### Pipeline completo (exemplo real)
+## Documentação
 
-```bash
-# 1. Configurar cookies (uma vez)
-python -m udemy_transcripter --setup
-
-# 2. Baixar e formatar para Obsidian
-python -m udemy_transcripter \
-  --url "https://udemy.com/course/docker-zero-a-profissional/" \
-  --format obsidian --merge --lang pt
-
-# 3. Enriquecer com IA (pode levar 2-3 dias no tier gratuito do Groq)
-python -m udemy_transcripter \
-  --enrich "./udemy_transcripts/Docker Zero a Profissional" \
-  --provider groq --delay 5
-
-# 4. Abrir no Obsidian e estudar 🎉
-```
-
-## Formato Obsidian (`--format obsidian`)
-
-### Saída do download
-
-- **Frontmatter YAML** — funciona com Dataview
-- **Tags automáticas** — `#udemy`, `#curso/nome`, `#secao/nome`
-- **Navegação** — wikilinks `⬅ [[anterior]] | [[próxima]] ➡`
-- **MOC** — `_MOC.md` com links para todas as notas
-- **Índice por seção** — `_index.md` com lista numerada
-- **Área de anotações** — espaço reservado para notas pessoais
-
-### Após enriquecimento
-
-- **TL;DR** — resumo em 3-4 bullet points
-- **Headings educativos** — conceito → explicação → exemplo
-- **Blocos de código** — condizentes com a tecnologia da aula
-- **Callouts** — `> [!tip]`, `> [!warning]`, `> [!example]`, `> [!question]`
-- **Pontos-chave** — 3-5 bullet points de revisão
-- **Perguntas de revisão** — 2-3 perguntas para fixação
-
-### Estrutura de saída
-
-```
-udemy_transcripts/
-└── Docker Zero a Profissional/
-    ├── _MOC.md
-    ├── _CURSO_COMPLETO.md          # (com --merge)
-    ├── _metadata.json
-    ├── 01 - Primeiros Passos/
-    │   ├── _index.md
-    │   ├── 014 - Instalando o Docker.md
-    │   └── 015 - O que sao Containers.md
-    └── 02 - Construindo Imagens/
-        ├── _index.md
-        ├── 027 - Entendendo Layers.md
-        └── 028 - Criando seu primeiro Dockerfile.md
-```
-
-## Uso como biblioteca
-
-```python
-from udemy_transcripter import (
-    UdemyClient,
-    download_transcripts,
-    ObsidianFormatter,
-)
-from udemy_transcripter.enricher import create_provider, enrich_directory
-from pathlib import Path
-
-# Download
-client = UdemyClient("access_token=...; cf_clearance=...")
-result = download_transcripts(
-    client,
-    slug="docker-basico",
-    formatter=ObsidianFormatter(),
-    merge=True,
-)
-
-# Enriquecimento
-provider = create_provider("groq", api_key="gsk_...")
-enrich_directory(Path(result.output_dir), provider)
-```
-
-## Referência de opções
-
-### Download
-
-| Flag | Descrição |
-|------|-----------|
-| `--url`, `-u` | URL ou slug do curso |
-| `--format`, `-f` | Formato: `txt` (padrão) ou `obsidian` |
-| `--output`, `-o` | Diretório de saída (padrão: `./udemy_transcripts`) |
-| `--lang`, `-l` | Idioma preferido (`pt`, `en`, `es`) |
-| `--timestamps`, `-t` | Incluir timestamps `[HH:MM:SS]` |
-| `--merge`, `-m` | Gerar arquivo único com todo o curso |
-| `--list-langs` | Listar idiomas disponíveis |
-| `--cookie`, `-c` | Cookie string (opcional se usar `.env`) |
-
-### Enriquecimento com IA
-
-| Flag | Descrição |
-|------|-----------|
-| `--enrich DIR` | Diretório com notas `.md` para enriquecer |
-| `--provider` | `ollama` (padrão), `groq`, `gemini` ou `claude` |
-| `--model` | Modelo (ex: `llama-3.3-70b-versatile`, `llama3.1`) |
-| `--api-key` | API key (ou use `.env`) |
-| `--ollama-url` | URL do Ollama (padrão: `http://localhost:11434`) |
-| `--delay` | Delay entre chamadas em segundos (padrão: `1.0`) |
-| `--dry-run` | Preview sem alterar arquivos |
-
-### Geral
-
-| Flag | Descrição |
-|------|-----------|
-| `--setup` | Configurar `.env` interativamente |
-| `--debug` | Exibir detalhes das requisições |
+| Documento | Conteúdo |
+|-----------|----------|
+| [Configuração](docs/configuracao.md) | Cookies, API keys, `.env` |
+| [Uso](docs/uso.md) | Download, enriquecimento, pipeline completo |
+| [Obsidian](docs/obsidian.md) | Formato de saída, estrutura, estilo das notas |
+| [Referência](docs/referencia.md) | Todas as flags da CLI, uso como biblioteca |
+| [FAQ](docs/faq.md) | Perguntas frequentes e troubleshooting |
 
 ## Estrutura do projeto
 
 ```
 udemy_transcripter/
 ├── udemy_transcripter/        # Pacote principal
-│   ├── __init__.py            # API pública
-│   ├── __main__.py            # python -m udemy_transcripter
 │   ├── cli.py                 # Interface de linha de comando
 │   ├── client.py              # Cliente HTTP (Cloudflare bypass)
-│   ├── config.py              # Constantes e carregamento de .env
 │   ├── downloader.py          # Download e salvamento
-│   ├── enricher.py            # Enriquecimento com IA (Groq / Ollama / Claude)
-│   ├── exceptions.py          # Exceções customizadas
+│   ├── enricher.py            # Enriquecimento com IA
 │   ├── formatters.py          # Formatadores (txt, obsidian)
-│   ├── models.py              # Dataclasses do domínio
-│   ├── setup.py               # Configuração interativa do .env
-│   ├── utils.py               # Funções utilitárias
-│   └── vtt.py                 # Parser de legendas WebVTT
-├── tests/                     # 66 testes unitários
-│   ├── test_client.py
-│   ├── test_config.py
-│   ├── test_enricher.py
-│   ├── test_formatters.py
-│   ├── test_utils.py
-│   └── test_vtt.py
+│   ├── vtt.py                 # Parser de legendas WebVTT
+│   └── ...
+├── tests/                     # 69 testes unitários
+├── docs/                      # Documentação
 ├── .env.example
-├── .gitignore
 ├── pyproject.toml
-├── requirements.txt
 └── README.md
 ```
 
@@ -378,28 +71,9 @@ pip install -e ".[dev]"
 pytest -v
 ```
 
-## FAQ
-
-### O Groq é realmente gratuito?
-
-Sim. O tier gratuito não requer cartão de crédito. Os limites de tokens resetam diariamente. Para a maioria dos cursos, 2-3 dias são suficientes.
-
-### Atingi o rate limit do Groq. O que faço?
-
-Espere até o dia seguinte — os limites resetam automaticamente. Rode o mesmo comando de novo; os arquivos já processados serão pulados. O enricher também tenta automaticamente esperar quando recebe erro 429.
-
-### Posso misturar providers?
-
-Sim. Rode metade com Groq gratuito e, se quiser mais qualidade em aulas específicas, re-enriqueça com Claude (delete o marcador `<!-- enriched-by: -->` do arquivo para forçar reprocessamento).
-
-### A qualidade do Groq é boa?
-
-O Groq roda os mesmos modelos open source (Llama 3.3 70B, DeepSeek R1) — só mais rápido. A qualidade é a mesma de rodar no Ollama, mas em 3-5s em vez de 30-60s.
-
 ## Notas
 
 - Só funciona com cursos **que você comprou**
 - Depende das legendas/captions disponibilizadas pelo instrutor
-- Aulas sem legenda (quizzes, exercícios, artigos) são puladas
 - Cookies expiram — se der 403, copie novos do navegador
 - Respeite os termos de uso da Udemy (uso pessoal para estudo)
