@@ -30,6 +30,16 @@ def setup_env() -> None:
     if cookies.lower().startswith("cookie:"):
         cookies = cookies[7:].strip()
 
+    # Valida se a string parece completa
+    if "access_token=" not in cookies:
+        print("⚠ Aviso: 'access_token' não encontrado na cookie string.")
+        print("  A string pode ter sido truncada ao colar no terminal.")
+        print("  Dica: cole diretamente no arquivo .env com um editor de texto.")
+        confirm = input("  Salvar mesmo assim? (s/N): ").strip().lower()
+        if confirm != "s":
+            print("  Cancelado.")
+            return
+
     existing.pop("UDEMY_ACCESS_TOKEN", None)
     existing["UDEMY_COOKIES"] = cookies
 

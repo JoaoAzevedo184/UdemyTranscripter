@@ -10,7 +10,9 @@ udemy_transcripter/cli.py
 udemy_transcripter/client.py
 udemy_transcripter/config.py
 udemy_transcripter/downloader.py
+udemy_transcripter/enricher.py
 udemy_transcripter/exceptions.py
+udemy_transcripter/formatters.py
 udemy_transcripter/models.py
 udemy_transcripter/setup.py
 udemy_transcripter/utils.py

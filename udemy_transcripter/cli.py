@@ -112,6 +112,10 @@ Formatos disponíveis: {available_formats}
         help="Delay entre chamadas de IA em segundos (padrão: 1.0)",
     )
     parser.add_argument(
+        "--timeout", type=int, default=900,
+        help="Timeout por requisição em segundos (padrão: 900, relevante para Ollama local)",
+    )
+    parser.add_argument(
         "--dry-run", action="store_true",
         help="Preview do enriquecimento sem alterar arquivos",
     )
@@ -168,6 +172,7 @@ def _handle_enrich(args: argparse.Namespace) -> int:
             model=args.model,
             api_key=args.api_key,
             base_url=args.ollama_url,
+            timeout=args.timeout,
         )
     except ValueError as e:
         print(f"✗ {e}")

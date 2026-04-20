@@ -4,6 +4,7 @@ Usa curl_cffi para imitar o TLS fingerprint do Chrome,
 necessário para passar pela proteção Cloudflare.
 """
 
+import sys
 
 from curl_cffi import requests as cffi_requests
 
@@ -28,6 +29,10 @@ class UdemyClient:
         if cookie_data.lower().startswith("cookie:"):
             cookie_data = cookie_data[7:].strip()
 
+        # Remove caracteres non-ASCII que quebram curl_cffi
+        # (ex: … U+2026 de strings truncadas no terminal)
+        cookie_data = cookie_data.encode("ascii", errors="ignore").decode("ascii")
+
         headers = dict(HEADERS_BASE)
 
         if ";" in cookie_data:
@@ -38,7 +43,13 @@ class UdemyClient:
                 headers["Authorization"] = f"Bearer {access_token}"
                 headers["X-Udemy-Authorization"] = f"Bearer {access_token}"
             else:
-                print("⚠ Aviso: access_token não encontrado nos cookies.")
+                print("✗ Erro: access_token não encontrado nos cookies.")
+                print("  A cookie string pode ter sido truncada ao colar no terminal.")
+                print("  Dicas:")
+                print("    - No navegador, clique com botão direito no valor → 'Copy value'")
+                print("    - Ou cole o cookie direto no arquivo .env manualmente")
+                print("    - Verifique se o .env contém 'access_token=' na string")
+                sys.exit(1)
         else:
             # Token simples
             token = cookie_data.strip('"').strip("'")

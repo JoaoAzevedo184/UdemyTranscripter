@@ -166,9 +166,11 @@ class OllamaProvider(LLMProvider):
         self,
         model: str = "llama3.1",
         base_url: str = "http://localhost:11434",
+        timeout: int = 900,
     ):
         self.model = model
         self.base_url = base_url.rstrip("/")
+        self.timeout = timeout
 
     def name(self) -> str:
         return f"ollama/{self.model}"
@@ -190,7 +192,7 @@ class OllamaProvider(LLMProvider):
                     "num_ctx": 16384,
                 },
             },
-            timeout=300,
+            timeout=self.timeout,
         )
 
         if not resp.ok:
@@ -433,6 +435,7 @@ def create_provider(
     model: str | None = None,
     api_key: str | None = None,
     base_url: str | None = None,
+    timeout: int = 900,
 ) -> LLMProvider:
     """Cria um provider de LLM pelo nome.
 
@@ -441,9 +444,10 @@ def create_provider(
         model: Modelo a usar (padrão depende do provider)
         api_key: API key (necessário para claude, groq e gemini)
         base_url: URL base (para ollama customizado)
+        timeout: Timeout por requisição em segundos (relevante para ollama)
     """
     if provider_name == "ollama":
-        kwargs = {}
+        kwargs: dict = {"timeout": timeout}
         if model:
             kwargs["model"] = model
         if base_url:
